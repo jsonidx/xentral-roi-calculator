@@ -49,11 +49,35 @@ model ReferenceData {
 }
 
 model XentralPlan {
-  id                String   @id @default(cuid())
-  name              String
-  servicePackage    String
-  monthlyFee        Float
-  maxMonthlyRevenue Float?
-  sortOrder         Int      @default(0)
-  updatedAt         DateTime @updatedAt
+  id                    String   @id @default(cuid())
+
+  // Plan tier
+  planTier              String   // "starter" | "business" | "pro"
+
+  // Service package (determines revenue band)
+  servicePackage        String   // "standard_s" | "standard_m" | "standard_l" | "growth_s" | "growth_m" | "growth_l" | "premium_s"
+
+  // Revenue thresholds for this package (annual EUR)
+  minAnnualRevenue      Float    // lower bound (0 for Standard S)
+  maxAnnualRevenue      Float?   // null = no upper limit
+
+  // Pricing per billing model (monthly fee)
+  monthlyFeeMonthly     Float    // Monatsvertrag
+  monthlyFeeAnnual      Float    // 12-month prepay (~5% discount)
+  monthlyFee2Year       Float    // 2-year prepay (~10% discount)
+
+  // Included orders
+  includedOrdersMonthly Int      // included orders/month (monthly contract)
+  includedOrdersAnnual  Int      // included orders/month (annual contract)
+
+  // Variable overage pricing (per order, monthly billing)
+  overage1To1000        Float    // price per extra order, band 1–1.000
+  overage1001To5000     Float    // price per extra order, band 1.001–5.000
+  overage5001To10000    Float    // price per extra order, band 5.001–10.000
+
+  sortOrder             Int      @default(0)
+  isActive              Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  @@unique([planTier, servicePackage])
 }

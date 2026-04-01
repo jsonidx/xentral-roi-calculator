@@ -10,6 +10,7 @@ import {
   formatPercent,
   CalculatorResults,
 } from '@/lib/calculations';
+import { XentralPlanRow } from '@/lib/types';
 import LeadModal from './LeadModal';
 
 // Dynamically import charts to avoid SSR issues
@@ -26,6 +27,8 @@ const BreakevenChart = dynamic(() => import('./charts/BreakevenChart'), {
 const SLIDER_MIN = 0;
 const SLIDER_MAX = 3_000_000;
 const SLIDER_DEFAULT = 100_000;
+
+type BillingCycle = 'monthly' | 'annual' | '2year';
 
 interface ExpertSettings {
   aov: number;
@@ -50,6 +53,12 @@ const DEFAULT_FACTORS = {
   oosMarginFactor: 0.30,
 };
 
+const BILLING_LABELS: Record<BillingCycle, string> = {
+  monthly: 'Monatlich',
+  annual:  'Jährlich',
+  '2year': '2 Jahre',
+};
+
 export default function ROICalculator() {
   const searchParams = useSearchParams();
   const partnerSource = searchParams.get('partner');
@@ -63,10 +72,16 @@ export default function ROICalculator() {
   const [expert, setExpert] = useState<ExpertSettings>(DEFAULT_EXPERT);
   const [expertOpen, setExpertOpen] = useState(true);
 
+  // Billing cycle (new expert setting)
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
+
   // Reference factors from DB
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
 
-  // Plans from DB
+  // Plan matrix from DB
+  const [planMatrix, setPlanMatrix] = useState<XentralPlanRow[]>([]);
+
+  // Legacy plans (backward compat fallback)
   const [plans, setPlans] = useState<any[]>([]);
 
   // Modal state
@@ -84,7 +99,11 @@ export default function ROICalculator() {
             oosMarginFactor: json.data.oos_margin_factor ?? 0.30,
           });
         }
-        if (json.plans) setPlans(json.plans);
+        if (json.planMatrix && json.planMatrix.length > 0) {
+          setPlanMatrix(json.planMatrix);
+        } else if (json.plans) {
+          setPlans(json.plans);
+        }
       })
       .catch(() => {
         // Keep defaults
@@ -105,8 +124,11 @@ export default function ROICalculator() {
       errorReductionFactor: factors.errorReductionFactor,
       oosMarginFactor: factors.oosMarginFactor,
       plans,
+      planMatrix,
+      planTier: 'business' as const,
+      billingCycle,
     }),
-    [monthlyRevenue, oosRateCurrent, timePerOrderManual, expert, factors, plans]
+    [monthlyRevenue, oosRateCurrent, timePerOrderManual, expert, factors, plans, planMatrix, billingCycle]
   );
 
   const results: CalculatorResults = useMemo(() => calculate(inputs), [inputs]);
@@ -334,6 +356,29 @@ export default function ROICalculator() {
                     min={0}
                     step={5}
                   />
+
+                  {/* Billing cycle selector */}
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Abrechnung</label>
+                    <div className="flex gap-1.5">
+                      {(Object.keys(BILLING_LABELS) as BillingCycle[]).map((cycle) => (
+                        <button
+                          key={cycle}
+                          type="button"
+                          onClick={() => setBillingCycle(cycle)}
+                          className={`flex-1 text-xs font-medium py-2 rounded-lg border transition-colors ${
+                            billingCycle === cycle
+                              ? 'bg-indigo-600 border-indigo-600 text-white'
+                              : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                          }`}
+                        >
+                          {BILLING_LABELS[cycle]}
+                          {cycle === 'annual' && <span className="ml-1 opacity-70">−5%</span>}
+                          {cycle === '2year'  && <span className="ml-1 opacity-70">−10%</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -408,26 +453,79 @@ export default function ROICalculator() {
               </div>
             </div>
 
-            {/* Recommended Plan */}
+            {/* Recommended Plan Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Empfohlener Plan
               </p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base font-bold text-[#4F46E5]">{results.plan.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Service-Paket:{' '}
-                    <span className="font-medium text-gray-600">{results.plan.servicePackage}</span>
-                  </p>
+
+              {results.planRecommendation ? (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-base font-bold text-[#4F46E5]">
+                        Xentral {results.planRecommendation.planTierName}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Service-Paket:{' '}
+                        <span className="font-medium text-gray-600">
+                          {results.planRecommendation.servicePackageName}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-extrabold text-gray-900">
+                        {formatNumber(Math.round(results.planRecommendation.totalMonthlyFee))} €
+                      </p>
+                      <p className="text-xs text-gray-400">/ Monat</p>
+                    </div>
+                  </div>
+
+                  {/* Fee breakdown */}
+                  <div className="mt-3 pt-3 border-t border-gray-50 space-y-1">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Grundgebühr</span>
+                      <span>{formatNumber(Math.round(results.planRecommendation.baseMonthlyFee))} €</span>
+                    </div>
+                    {results.planRecommendation.estimatedOrderCost > 0 && (
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Est. variable Bestellkosten</span>
+                        <span>{formatNumber(Math.round(results.planRecommendation.estimatedOrderCost))} €</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Savings vs monthly billing */}
+                  {results.planRecommendation.monthlySavingsVsMonthly > 0 && (
+                    <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                      <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-green-700 font-medium">
+                        Sie sparen{' '}
+                        {formatNumber(Math.round(results.planRecommendation.monthlySavingsVsMonthly * 12))} €/Jahr
+                        {' '}gegenüber Monatszahlung
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-bold text-[#4F46E5]">{results.plan.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Service-Paket:{' '}
+                      <span className="font-medium text-gray-600">{results.plan.servicePackage}</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-extrabold text-gray-900">
+                      {formatNumber(results.plan.monthlyFee)} €
+                    </p>
+                    <p className="text-xs text-gray-400">/ Monat</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xl font-extrabold text-gray-900">
-                    {formatNumber(results.plan.monthlyFee)} €
-                  </p>
-                  <p className="text-xs text-gray-400">/ Monat</p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Bar Chart */}
