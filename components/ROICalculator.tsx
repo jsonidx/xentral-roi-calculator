@@ -25,7 +25,7 @@ const BreakevenChart = dynamic(() => import('./charts/BreakevenChart'), {
 });
 
 const SLIDER_MIN = 0;
-const SLIDER_MAX = 3_000_000;
+const SLIDER_MAX = 100_000_000;
 const SLIDER_DEFAULT = 100_000;
 
 type BillingCycle = 'monthly' | 'annual' | '2year';
@@ -154,7 +154,7 @@ export default function ROICalculator() {
     return `${val} €`;
   };
 
-  const sliderTicks = [0, 750_000, 1_500_000, 2_250_000, 3_000_000];
+  const sliderTicks = [0, 25_000_000, 50_000_000, 75_000_000, 100_000_000];
 
   return (
     <>
