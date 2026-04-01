@@ -47,3 +47,13 @@ model ReferenceData {
   description String?
   updatedAt   DateTime @updatedAt
 }
+
+model XentralPlan {
+  id                String   @id @default(cuid())
+  name              String
+  servicePackage    String
+  monthlyFee        Float
+  maxMonthlyRevenue Float?
+  sortOrder         Int      @default(0)
+  updatedAt         DateTime @updatedAt
+}

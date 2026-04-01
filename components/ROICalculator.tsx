@@ -66,6 +66,9 @@ export default function ROICalculator() {
   // Reference factors from DB
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
 
+  // Plans from DB
+  const [plans, setPlans] = useState<any[]>([]);
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalIntent, setModalIntent] = useState<'consultation' | 'offer'>('consultation');
@@ -81,6 +84,7 @@ export default function ROICalculator() {
             oosMarginFactor: json.data.oos_margin_factor ?? 0.30,
           });
         }
+        if (json.plans) setPlans(json.plans);
       })
       .catch(() => {
         // Keep defaults
@@ -100,8 +104,9 @@ export default function ROICalculator() {
       costPerError: expert.costPerError,
       errorReductionFactor: factors.errorReductionFactor,
       oosMarginFactor: factors.oosMarginFactor,
+      plans,
     }),
-    [monthlyRevenue, oosRateCurrent, timePerOrderManual, expert, factors]
+    [monthlyRevenue, oosRateCurrent, timePerOrderManual, expert, factors, plans]
   );
 
   const results: CalculatorResults = useMemo(() => calculate(inputs), [inputs]);

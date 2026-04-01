@@ -10,6 +10,7 @@ export interface CalculatorInputs {
   costPerError: number;
   errorReductionFactor: number; // e.g. 0.90
   oosMarginFactor: number;      // e.g. 0.30
+  plans?: (PlanInfo & { maxMonthlyRevenue?: number | null })[];
 }
 
 export interface PlanInfo {
@@ -36,25 +37,32 @@ export interface CalculatorResults {
   plan: PlanInfo;
 }
 
-export function getRecommendedPlan(monthlyRevenue: number): PlanInfo {
+export function getRecommendedPlan(
+  monthlyRevenue: number,
+  plans?: (PlanInfo & { maxMonthlyRevenue?: number | null })[]
+): PlanInfo {
+  if (plans && plans.length > 0) {
+    // Sort by maxMonthlyRevenue ascending (nulls last = enterprise/unlimited)
+    const sorted = [...plans].sort((a, b) => {
+      if (a.maxMonthlyRevenue == null) return 1;
+      if (b.maxMonthlyRevenue == null) return -1;
+      return a.maxMonthlyRevenue - b.maxMonthlyRevenue;
+    });
+    for (const plan of sorted) {
+      if (plan.maxMonthlyRevenue == null || monthlyRevenue < plan.maxMonthlyRevenue) {
+        return { name: plan.name, monthlyFee: plan.monthlyFee, servicePackage: plan.servicePackage };
+      }
+    }
+    const last = sorted[sorted.length - 1];
+    return { name: last.name, monthlyFee: last.monthlyFee, servicePackage: last.servicePackage };
+  }
+  // fallback hardcoded
   if (monthlyRevenue < 500_000) {
-    return {
-      name: 'Xentral Starter',
-      monthlyFee: 499,
-      servicePackage: 'Standard M',
-    };
+    return { name: 'Xentral Starter', monthlyFee: 499, servicePackage: 'Standard M' };
   } else if (monthlyRevenue < 2_000_000) {
-    return {
-      name: 'Xentral Professional',
-      monthlyFee: 999,
-      servicePackage: 'Standard L',
-    };
+    return { name: 'Xentral Professional', monthlyFee: 999, servicePackage: 'Standard L' };
   } else {
-    return {
-      name: 'Xentral Enterprise',
-      monthlyFee: 1999,
-      servicePackage: 'Enterprise',
-    };
+    return { name: 'Xentral Enterprise', monthlyFee: 1999, servicePackage: 'Enterprise' };
   }
 }
 
@@ -74,7 +82,7 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
   } = inputs;
 
   const ordersPerMonth = aov > 0 ? monthlyRevenue / aov : 0;
-  const plan = getRecommendedPlan(monthlyRevenue);
+  const plan = getRecommendedPlan(monthlyRevenue, inputs.plans);
 
   // Time costs
   const timeCostCurrent = (timePerOrderManual / 60) * ordersPerMonth * hourlyRate;

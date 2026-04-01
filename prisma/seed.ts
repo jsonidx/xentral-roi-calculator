@@ -44,7 +44,22 @@ async function main() {
     });
   }
 
-  console.log('Seed data inserted successfully');
+  console.log('Reference data inserted successfully');
+
+  const plans = [
+    { name: 'Xentral Starter', servicePackage: 'Standard M', monthlyFee: 499, maxMonthlyRevenue: 500000, sortOrder: 1 },
+    { name: 'Xentral Professional', servicePackage: 'Standard L', monthlyFee: 999, maxMonthlyRevenue: 2000000, sortOrder: 2 },
+    { name: 'Xentral Enterprise', servicePackage: 'Enterprise', monthlyFee: 1999, maxMonthlyRevenue: null, sortOrder: 3 },
+  ];
+
+  for (const plan of plans) {
+    const existing = await prisma.xentralPlan.findFirst({ where: { name: plan.name } });
+    if (!existing) {
+      await prisma.xentralPlan.create({ data: plan });
+    }
+  }
+
+  console.log('Plans inserted successfully');
 }
 
 main()
