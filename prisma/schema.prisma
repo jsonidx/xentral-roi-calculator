@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Lead {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now())
+  name                String
+  email               String
+  company             String?
+  phone               String?
+  intent              String   // "consultation" | "offer"
+  partnerSource       String?  // from ?partner= query param
+  // Calculator inputs
+  monthlyRevenue      Float
+  ordersPerMonth      Float
+  oosRateCurrent      Float
+  timePerOrderManual  Float
+  aov                 Float
+  oosRateXentral      Float
+  hourlyRate          Float
+  timePerOrderXentral Float
+  pickErrorRate       Float
+  costPerError        Float
+  // Results
+  netAnnualSavings    Float
+  roiPercent          Float
+  timeGainPerMonth    Float
+  recommendedPlan     String
+  monthlyPlanCost     Float
+}
+
+model ReferenceData {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Float
+  label       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
