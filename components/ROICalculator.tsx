@@ -65,6 +65,7 @@ export default function ROICalculator() {
 
   // Core inputs
   const [monthlyRevenue, setMonthlyRevenue] = useState(SLIDER_DEFAULT);
+  const [monthlyOrders, setMonthlyOrders] = useState(Math.round(SLIDER_DEFAULT / DEFAULT_EXPERT.aov));
   const [oosRateCurrent, setOosRateCurrent] = useState(5);
   const [timePerOrderManual, setTimePerOrderManual] = useState(3);
 
@@ -113,6 +114,7 @@ export default function ROICalculator() {
   const inputs = useMemo(
     () => ({
       monthlyRevenue,
+      monthlyOrders,
       aov: expert.aov,
       oosRateCurrent,
       oosRateXentral: expert.oosRateXentral,
@@ -128,7 +130,7 @@ export default function ROICalculator() {
       planTier: 'business' as const,
       billingCycle,
     }),
-    [monthlyRevenue, oosRateCurrent, timePerOrderManual, expert, factors, plans, planMatrix, billingCycle]
+    [monthlyRevenue, monthlyOrders, oosRateCurrent, timePerOrderManual, expert, factors, plans, planMatrix, billingCycle]
   );
 
   const results: CalculatorResults = useMemo(() => calculate(inputs), [inputs]);
@@ -227,16 +229,20 @@ export default function ROICalculator() {
               </div>
             </div>
 
-            {/* Orders per month (read-only) */}
+            {/* Orders per month (independent input) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  ≈ Bestellungen pro Monat
+                  Bestellungen pro Monat
                 </label>
-                <div className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
-                  {formatNumber(Math.round(results.ordersPerMonth))}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">= Umsatz ÷ AOV</p>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={monthlyOrders}
+                  onChange={(e) => setMonthlyOrders(Number(e.target.value))}
+                  className="roi-input"
+                />
               </div>
 
               {/* OOS Rate Current */}

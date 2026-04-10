@@ -7,6 +7,7 @@ import {
 
 export interface CalculatorInputs {
   monthlyRevenue: number;
+  monthlyOrders?: number;
   aov: number;
   oosRateCurrent: number;   // percent, e.g. 5
   oosRateXentral: number;   // percent, e.g. 2
@@ -202,7 +203,10 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     oosMarginFactor,
   } = inputs;
 
-  const ordersPerMonth = aov > 0 ? monthlyRevenue / aov : 0;
+  const ordersPerMonth =
+    inputs.monthlyOrders !== undefined
+      ? inputs.monthlyOrders
+      : aov > 0 ? monthlyRevenue / aov : 0;
 
   // Resolve plan — prefer new matrix when available
   let plan: PlanInfo;
